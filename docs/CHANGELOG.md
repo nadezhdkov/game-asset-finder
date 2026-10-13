@@ -20,6 +20,7 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - `CONTRIBUTING.md`, pull request and issue templates, and `CODEOWNERS`.
 - Pixel-art logo (`docs/assets/logo.svg`, `logo.png`) and a redesigned README
   with a centred header and badges.
+- `docs/assets/make_logo.py` regenerates the logo SVG reproducibly.
 
 ### Changed
 
