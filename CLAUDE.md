@@ -9,18 +9,35 @@ User-facing documentation lives in [README.md](README.md).
 - `server.py`: the whole server. Inline PEP 723 dependencies; run with
   `uv run --script server.py` (stdio transport).
 - `smoke.py`: live end-to-end check against both sites.
+- `tests/`: offline pytest suite; `tests/fixtures.py` holds hand-written pages
+  that mirror the markup each parser relies on.
+- `pyproject.toml`: dev tooling; its `dependencies` must equal the inline
+  metadata in `server.py` (a test enforces it).
+- `.github/`: CI, PR checks, auto-merge, weekly live smoke test, Dependabot.
 - `docs/CHANGELOG.md`: user-visible changes, Keep a Changelog format.
 
 ## Commands
 
 ```bash
+uv run ruff check . && uv run ruff format --check .   # lint + format
+uv run pytest                                    # offline tests (what CI runs)
 uv run --script smoke.py                         # live test (~30 s, real network)
 uv run --script server.py                        # start the server on stdio
 claude mcp list                                  # check the registered server connects
 ```
 
-There is no offline test suite; `smoke.py` hits the real sites, so run it
-sparingly and never in a tight loop.
+`uv run pytest` is offline and is what pull requests run. `smoke.py` hits the
+real sites, so run it sparingly (it also runs weekly in CI). When site markup
+changes, update `tests/fixtures.py` to the new structure alongside the parser fix.
+
+## CI and merging
+
+Pull requests must pass `CI / Lint`, `CI / Test (Python 3.11|3.12|3.13)`,
+`PR checks / PR title` and `PR checks / Changelog`. Merging is label-driven:
+a maintainer adds `automerge` and GitHub squash-merges once checks pass; new
+outside commits revoke it. Keep workflow permissions per job, pin Actions by
+commit SHA, and never check out PR code in `pull_request_target` workflows
+(verify with `uvx zizmor --offline .github/workflows/`).
 
 ## Rules that must not regress
 

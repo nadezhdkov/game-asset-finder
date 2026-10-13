@@ -15,7 +15,7 @@ import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import server  # noqa: E402
+import server
 
 OGA_ASSET = "https://opengameart.org/content/a-platformer-in-the-forest"
 

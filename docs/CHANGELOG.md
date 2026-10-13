@@ -6,6 +6,25 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Offline test suite (`uv run pytest`): parsing against hand-written page
+  fixtures, licence handling, credits ledger, archive safety, robots.txt
+  guarantees, dependency sync between `server.py` and `pyproject.toml`, and an
+  MCP protocol handshake against the real server.
+- `pyproject.toml` with dev tooling (pytest, Ruff) for `uv sync` / `uv run`.
+- GitHub Actions: lint and offline tests on Python 3.11–3.13 for every pull
+  request, Conventional Commits PR title and changelog checks, label-driven
+  auto-merge that is revoked when outside contributors push new commits, a
+  weekly live smoke test, and Dependabot for Actions (pinned by commit SHA).
+- `CONTRIBUTING.md`, pull request and issue templates, and `CODEOWNERS`.
+- Pixel-art logo (`docs/assets/logo.svg`, `logo.png`) and a redesigned README
+  with a centred header and badges.
+
+### Changed
+
+- Code formatted and linted with Ruff (no behaviour change).
+
 ## [0.2.0] - 2026-10-13
 
 ### Added

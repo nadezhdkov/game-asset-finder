@@ -1,0 +1,21 @@
+name: Site changed
+description: itch.io or OpenGameArt results are empty or missing fields.
+labels: [site-change]
+body:
+  - type: dropdown
+    id: site
+    attributes:
+      label: Site
+      options: [itch.io, OpenGameArt]
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Example URL or search
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: What is missing or wrong?
