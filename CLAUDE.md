@@ -9,6 +9,7 @@ User-facing documentation lives in [README.md](README.md).
 - `server.py`: the whole server. Inline PEP 723 dependencies; run with
   `uv run --script server.py` (stdio transport).
 - `smoke.py`: live end-to-end check against both sites.
+- `docs/CHANGELOG.md`: user-visible changes, Keep a Changelog format.
 
 ## Commands
 
@@ -37,6 +38,19 @@ sparingly and never in a tight loop.
   `_record()`.
 - **Treat downloaded archives as untrusted.** Keep `_safe_extract()`'s path
   traversal check and the size/count limits.
+
+## Changelog and versions
+
+- Every change that affects behaviour, tool contracts, output, dependencies or
+  docs users rely on gets an entry under `## [Unreleased]` in
+  `docs/CHANGELOG.md`, in the same commit, under Added / Changed / Deprecated /
+  Removed / Fixed / Security.
+- On release, rename `[Unreleased]` to `[X.Y.Z] - YYYY-MM-DD`, add a fresh
+  empty `[Unreleased]`, update the compare links at the bottom, and set
+  `__version__` in `server.py` to match. Semantic Versioning: tool contract
+  breaks bump MAJOR (MINOR while 0.x), new tools/options bump MINOR, fixes
+  bump PATCH.
+- Commit subjects follow Conventional Commits (`feat:`, `fix:`, `docs:`…).
 
 ## Conventions
 

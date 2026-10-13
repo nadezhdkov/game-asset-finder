@@ -32,7 +32,8 @@ import httpx
 from bs4 import BeautifulSoup
 from mcp.server.mcpserver import MCPServer
 
-USER_AGENT = "game-asset-finder/0.1 (personal asset search; Claude Code MCP)"
+__version__ = "0.2.0"
+USER_AGENT = f"game-asset-finder/{__version__} (personal asset search; Claude Code MCP)"
 CACHE_DIR = Path.home() / ".cache" / "game-asset-finder"
 CACHE_TTL = 24 * 3600
 # Minimum seconds between requests to one host.
@@ -61,7 +62,7 @@ LICENSE_HINT = re.compile(
 )
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
-mcp = MCPServer("game-assets", instructions="Find free 2D game assets on itch.io and OpenGameArt; check licences with get_game_asset and record credits.")
+mcp = MCPServer("game-assets", version=__version__, instructions="Find free 2D game assets on itch.io and OpenGameArt; check licences with get_game_asset and record credits.")
 _last_request: dict[str, float] = {}
 _locks: dict[str, asyncio.Lock] = {}
 
