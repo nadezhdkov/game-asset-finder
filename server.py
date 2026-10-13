@@ -319,7 +319,16 @@ async def _oga_details(url: str) -> dict:
 # --- Credits ledger ---------------------------------------------------------
 
 
-def _record(dest: Path, details: dict, saved: list[str]) -> Path:
+CREDIT_FILE_LIST_LIMIT = 8
+RESULT_FILE_SAMPLE = 12
+
+
+def _file_summary(paths: list[str]) -> dict:
+    """Compact view of a possibly huge file list for tool results."""
+    return {"count": len(paths), "sample": paths[:RESULT_FILE_SAMPLE]}
+
+
+def _record(dest: Path, details: dict, saved: list[str], folder: str | None = None) -> Path:
     """Append one entry to assets.json and regenerate CREDITS.md from it."""
     dest.mkdir(parents=True, exist_ok=True)
     ledger_path = dest / "assets.json"
@@ -340,6 +349,7 @@ def _record(dest: Path, details: dict, saved: list[str]) -> Path:
         "authors": authors,
         "licenses": licenses,
         "attribution_instructions": attribution,
+        "folder": folder,
         "files": saved,
         "recorded": date.today().isoformat(),
     }
@@ -355,16 +365,26 @@ def _record(dest: Path, details: dict, saved: list[str]) -> Path:
         ]
         if e.get("attribution_instructions"):
             lines.append(f"- Attribution: {e['attribution_instructions']}")
-        if e.get("files"):
-            lines.append(f"- Files: {', '.join(e['files'])}")
+        files = e.get("files") or []
+        if len(files) > CREDIT_FILE_LIST_LIMIT and e.get("folder"):
+            lines.append(f"- Files: {e['folder']}/ ({len(files)} files)")
+        elif files:
+            lines.append(f"- Files: {', '.join(files)}")
         lines.append("")
     (dest / "CREDITS.md").write_text("\n".join(lines))
     return ledger_path
 
 
+def _is_junk(name: str) -> bool:
+    """macOS/Windows archive metadata that is never a game asset."""
+    parts = Path(name).parts
+    base = parts[-1] if parts else name
+    return "__MACOSX" in parts or base.startswith("._") or base in (".DS_Store", "Thumbs.db", "desktop.ini")
+
+
 def _safe_extract(archive: Path, target: Path) -> list[str]:
-    """Extract a zip without path traversal and within size/count limits."""
-    extracted = []
+    """Extract a zip without path traversal and within size/count limits,
+    skipping OS metadata entries."""
     with zipfile.ZipFile(archive) as zf:
         members = zf.infolist()
         if len(members) > MAX_EXTRACT_FILES or sum(m.file_size for m in members) > MAX_EXTRACT_BYTES:
@@ -374,9 +394,10 @@ def _safe_extract(archive: Path, target: Path) -> list[str]:
             path = (target / member.filename).resolve()
             if not path.is_relative_to(root):
                 raise ValueError(f"{archive.name} contains an unsafe path: {member.filename}")
-        zf.extractall(target)
-        extracted = [m.filename for m in members if not m.is_dir()]
-    return extracted
+        wanted = [m for m in members if not m.is_dir() and not _is_junk(m.filename)]
+        for member in wanted:
+            zf.extract(member, target)
+    return [m.filename for m in wanted]
 
 
 # --- Tools ------------------------------------------------------------------
@@ -438,12 +459,15 @@ async def download_game_asset(
     dest_dir: str,
     files: list[str] | None = None,
     extract_zip: bool = True,
+    keep_archive: bool = False,
 ) -> dict:
     """Download files of an OpenGameArt asset into dest_dir/<asset-slug>/ and record
     attribution in dest_dir/assets.json and dest_dir/CREDITS.md.
 
     files: file names to fetch (default: all). Zip files are extracted safely when
-    extract_zip is true. itch.io assets must be downloaded manually in a browser;
+    extract_zip is true (OS metadata such as __MACOSX is skipped) and the archive is
+    deleted afterwards unless keep_archive is true. The result lists a file count and
+    a sample, not every file. itch.io assets must be downloaded manually in a browser;
     use record_asset_credit afterwards.
     """
     if _host(url) == "itch.io":
@@ -484,18 +508,23 @@ async def download_game_asset(
                                 raise ValueError(f"{name} exceeded {MAX_FILE_BYTES // 2**20} MiB")
                             handle.write(chunk)
             _last_request[host] = time.monotonic()
-        saved.append(str(path.relative_to(dest)))
         if extract_zip and name.lower().endswith(".zip"):
             folder = target / Path(name).stem
             for member in _safe_extract(path, folder):
                 saved.append(str((folder / member).relative_to(dest)))
-    ledger = _record(dest, details, saved)
+            if keep_archive:
+                saved.append(str(path.relative_to(dest)))
+            else:
+                path.unlink()
+        else:
+            saved.append(str(path.relative_to(dest)))
+    ledger = _record(dest, details, saved, str(target.relative_to(dest)))
     return {
         "title": details["title"],
         "licenses": details["licenses"],
         "attribution_instructions": details["attribution_instructions"],
         "saved_to": str(target),
-        "files": saved,
+        "files": _file_summary(saved),
         "missing_requested_files": missing,
         "credits": str(dest / "CREDITS.md"),
         "ledger": str(ledger),

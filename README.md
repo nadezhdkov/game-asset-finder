@@ -10,7 +10,7 @@ and download them with attribution recorded.
 |---|---|
 | `search_game_assets` | Search both sites by text, tags (`pixel-art`, `tileset`, `platformer`, `top-down`, `character`, `ui`, `16x16`…), type (`2d`, `music`, `sfx`, `texture`), licence (OpenGameArt: `cc0`, `cc-by-4.0`, `oga-by-4.0`…), sort order and page. |
 | `get_game_asset` | Details for one asset: authors, licence (declared field, or licence excerpts from the itch.io description), attribution instructions, tags, description and file list. |
-| `download_game_asset` | Download OpenGameArt files into `dest_dir/<asset>/`, safely extract ZIPs and record credits. |
+| `download_game_asset` | Download OpenGameArt files into `dest_dir/<asset>/`, safely extract ZIPs (skipping `__MACOSX`/`.DS_Store` junk and deleting the archive unless `keep_archive` is set) and record credits. Results report a file count and sample rather than every file. |
 | `record_asset_credit` | Record credits for an asset obtained manually (for example from itch.io). |
 
 Credits are kept in `dest_dir/assets.json` (data) and `dest_dir/CREDITS.md`

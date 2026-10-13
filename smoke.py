@@ -11,6 +11,7 @@ import asyncio
 import json
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -32,10 +33,30 @@ async def main() -> None:
     refused = await server.download_game_asset(itch_url, str(dest))
     assert refused["downloaded"] == [] and refused["manual_download"], refused
     downloaded = await server.download_game_asset(OGA_ASSET, str(dest), files=["sheet.png", "missing.png"])
-    assert downloaded["files"] and downloaded["missing_requested_files"] == ["missing.png"], downloaded
+    assert downloaded["files"]["count"] == 1 and downloaded["missing_requested_files"] == ["missing.png"], downloaded
     assert (dest / "CREDITS.md").exists() and json.loads((dest / "assets.json").read_text())
     print("downloaded:", downloaded["files"], "->", dest)
+    check_extraction(dest)
     print("OK")
+
+
+def check_extraction(dest: Path) -> None:
+    """Offline: OS junk is skipped and path traversal is refused."""
+    good, evil = dest / "good.zip", dest / "evil.zip"
+    with zipfile.ZipFile(good, "w") as zf:
+        zf.writestr("tiles/a.png", "x")
+        zf.writestr("__MACOSX/tiles/._a.png", "x")
+        zf.writestr("tiles/.DS_Store", "x")
+    with zipfile.ZipFile(evil, "w") as zf:
+        zf.writestr("../../escaped.txt", "x")
+    assert server._safe_extract(good, dest / "good") == ["tiles/a.png"]
+    try:
+        server._safe_extract(evil, dest / "evil")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("path traversal was not refused")
+    print("extraction checks passed")
 
 
 if __name__ == "__main__":
