@@ -54,3 +54,8 @@ uv run --script smoke.py            # live check against both sites (~30 s)
 
 Files up to 300 MiB; ZIPs up to 1 GiB uncompressed and 20,000 entries; ZIP
 paths that would escape the destination folder are rejected.
+
+## License
+
+[MIT](LICENSE). This licence covers the server's code only; every asset you
+find or download keeps its own licence, recorded in `CREDITS.md`.
