@@ -1,0 +1,20 @@
+name: Bug report
+description: A tool returned wrong data, failed, or crashed.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Tool name, arguments, and the result or error you got.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of the serverInfo version, or the commit you run.

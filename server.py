@@ -17,6 +17,7 @@ import asyncio
 import hashlib
 import html
 import json
+import logging
 import re
 import time
 import zipfile
@@ -25,8 +26,6 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import urlencode, urljoin, urlparse
 from xml.etree import ElementTree
-
-import logging
 
 import httpx
 from bs4 import BeautifulSoup
@@ -62,7 +61,13 @@ LICENSE_HINT = re.compile(
 )
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
-mcp = MCPServer("game-assets", version=__version__, instructions="Find free 2D game assets on itch.io and OpenGameArt; check licences with get_game_asset and record credits.")
+mcp = MCPServer(
+    "game-assets",
+    version=__version__,
+    instructions=(
+        "Find free 2D game assets on itch.io and OpenGameArt; check licences with get_game_asset and record credits."
+    ),
+)
 _last_request: dict[str, float] = {}
 _locks: dict[str, asyncio.Lock] = {}
 
@@ -125,8 +130,9 @@ def _license_excerpts(text: str, limit: int = 4) -> list[str]:
 # --- itch.io ----------------------------------------------------------------
 
 
-async def _search_itch(query: str, tags: list[str], asset_type: str, free_only: bool,
-                       sort: str, page: int, limit: int) -> dict:
+async def _search_itch(
+    query: str, tags: list[str], asset_type: str, free_only: bool, sort: str, page: int, limit: int
+) -> dict:
     tag_slugs = [_slug(t) for t in tags if _slug(t)]
     if asset_type in ITCH_TYPE_TAG and ITCH_TYPE_TAG[asset_type] not in tag_slugs:
         tag_slugs.insert(0, ITCH_TYPE_TAG[asset_type])
@@ -160,16 +166,18 @@ async def _search_itch(query: str, tags: list[str], asset_type: str, free_only: 
             if words and not all(w in haystack for w in words):
                 continue
             link = item.findtext("link") or ""
-            results.append({
-                "source": "itch.io",
-                "title": title,
-                "url": link,
-                "author": urlparse(link).hostname.split(".")[0] if link else None,
-                "price": item.findtext("price"),
-                "summary": _clip(summary, 160),
-                "thumbnail": item.findtext("imageurl"),
-                "license": "unknown - call get_game_asset (itch licenses are free text)",
-            })
+            results.append(
+                {
+                    "source": "itch.io",
+                    "title": title,
+                    "url": link,
+                    "author": urlparse(link).hostname.split(".")[0] if link else None,
+                    "price": item.findtext("price"),
+                    "summary": _clip(summary, 160),
+                    "thumbnail": item.findtext("imageurl"),
+                    "license": "unknown - call get_game_asset (itch licenses are free text)",
+                }
+            )
             if len(results) >= limit:
                 break
         if len(results) >= limit:
@@ -182,7 +190,7 @@ async def _search_itch(query: str, tags: list[str], asset_type: str, free_only: 
         "results": results,
         "next_page": page + len(pages) if results else None,
         "note": "itch.io forbids automated /search, so results come from tag-browse feeds; "
-                "use specific tags (e.g. pixel-art, tileset, platformer, top-down, character, ui, 16x16).",
+        "use specific tags (e.g. pixel-art, tileset, platformer, top-down, character, ui, 16x16).",
     }
 
 
@@ -214,22 +222,26 @@ async def _itch_details(url: str) -> dict:
         # Authors may fill the optional "Asset license" field; otherwise only free text exists.
         "license": info.get("Asset license"),
         "license_excerpts": _license_excerpts(description),
-        "license_note": ("Declared in the page's Asset license field." if info.get("Asset license") else
-                         "No declared licence field; read the excerpts and description before use. "
-                         "When none are present, ask the author or treat as all rights reserved."),
+        "license_note": (
+            "Declared in the page's Asset license field."
+            if info.get("Asset license")
+            else "No declared licence field; read the excerpts and description before use. "
+            "When none are present, ask the author or treat as all rights reserved."
+        ),
         "description": _clip(description, 1500),
         "files": uploads,
         "screenshots": data.get("screenshots", [])[:4],
         "download": f"Download manually in a browser: {base} (itch.io disallows automated downloads). "
-                    "Then call record_asset_credit to log attribution.",
+        "Then call record_asset_credit to log attribution.",
     }
 
 
 # --- OpenGameArt ------------------------------------------------------------
 
 
-async def _search_oga(query: str, tags: list[str], asset_type: str, licenses: list[str],
-                      sort: str, page: int, limit: int) -> dict:
+async def _search_oga(
+    query: str, tags: list[str], asset_type: str, licenses: list[str], sort: str, page: int, limit: int
+) -> dict:
     params: list[tuple[str, str]] = [("keys", query)]
     if asset_type in OGA_TYPES:
         params.append(("field_art_type_tid[]", OGA_TYPES[asset_type]))
@@ -258,13 +270,15 @@ async def _search_oga(query: str, tags: list[str], asset_type: str, licenses: li
         if not link:
             continue
         image = row.select_one(".field-name-field-art-preview img")
-        results.append({
-            "source": "opengameart",
-            "title": _text(link),
-            "url": urljoin(OGA, link["href"]),
-            "thumbnail": image.get("src") if image else None,
-            "license": "filtered: " + ", ".join(licenses) if licenses else "call get_game_asset",
-        })
+        results.append(
+            {
+                "source": "opengameart",
+                "title": _text(link),
+                "url": urljoin(OGA, link["href"]),
+                "thumbnail": image.get("src") if image else None,
+                "license": "filtered: " + ", ".join(licenses) if licenses else "call get_game_asset",
+            }
+        )
     return {
         "source": "opengameart",
         "search_url": url,
@@ -285,19 +299,23 @@ async def _oga_details(url: str) -> dict:
     licenses = []
     for item in soup.select(".field-name-field-art-licenses .license-icon"):
         anchor = item.select_one("a")
-        licenses.append({"name": _text(item.select_one(".license-name")), "url": anchor.get("href") if anchor else None})
+        licenses.append(
+            {"name": _text(item.select_one(".license-name")), "url": anchor.get("href") if anchor else None}
+        )
     files = []
     for anchor in soup.select(".field-name-field-art-files a[href]"):
         kind = anchor.get("type", "")
         size = re.search(r"length=(\d+)", kind)
         count = anchor.find_parent("span", class_="file")
         downloads = count.select_one(".dlcount-number") if count else None
-        files.append({
-            "name": _text(anchor),
-            "url": urljoin(OGA, anchor["href"]),
-            "bytes": int(size.group(1)) if size else None,
-            "downloads": int(_text(downloads)) if downloads and _text(downloads).isdigit() else None,
-        })
+        files.append(
+            {
+                "name": _text(anchor),
+                "url": urljoin(OGA, anchor["href"]),
+                "bytes": int(size.group(1)) if size else None,
+                "downloads": int(_text(downloads)) if downloads and _text(downloads).isdigit() else None,
+            }
+        )
     author_node = soup.select_one(".field-name-author-submitter .username")
     title = soup.select_one(".field-name-title h2") or soup.select_one("h2")
     return {
@@ -340,8 +358,11 @@ def _record(dest: Path, details: dict, saved: list[str], folder: str | None = No
         attribution = details.get("attribution_instructions")
     else:
         authors = [a.get("name") for a in details.get("authors", [])]
-        licenses = ([details["license"]] if details.get("license") else
-                    details.get("license_excerpts") or ["UNVERIFIED - see source page"])
+        licenses = (
+            [details["license"]]
+            if details.get("license")
+            else details.get("license_excerpts") or ["UNVERIFIED - see source page"]
+        )
         attribution = None
     entry = {
         "title": details.get("title"),
@@ -438,7 +459,7 @@ async def search_game_assets(
     if source in ("all", "opengameart"):
         tasks["opengameart"] = _search_oga(query, tags, asset_type, licenses, sort, page, limit)
     done = await asyncio.gather(*tasks.values(), return_exceptions=True)
-    for name, result in zip(tasks, done):
+    for name, result in zip(tasks, done, strict=True):
         out[name] = {"error": f"{type(result).__name__}: {result}"} if isinstance(result, Exception) else result
     return out
 
@@ -476,8 +497,8 @@ async def download_game_asset(
             "downloaded": [],
             "manual_download": url.split("?")[0],
             "reason": "itch.io disallows automated downloads (robots.txt) and many packs use a "
-                      "pay-what-you-want flow. Open the page in a browser, download, then call "
-                      "record_asset_credit with the same dest_dir.",
+            "pay-what-you-want flow. Open the page in a browser, download, then call "
+            "record_asset_credit with the same dest_dir.",
         }
     details = await _oga_details(url)
     dest = Path(dest_dir).expanduser().resolve()
@@ -496,18 +517,20 @@ async def download_game_asset(
             wait = HOST_DELAY.get(host, 1.0) - (time.monotonic() - _last_request.get(host, 0.0))
             if wait > 0:
                 await asyncio.sleep(wait)
-            async with httpx.AsyncClient(headers={"User-Agent": USER_AGENT}, follow_redirects=True, timeout=120) as client:
-                async with client.stream("GET", item["url"]) as response:
-                    response.raise_for_status()
-                    size = 0
-                    with path.open("wb") as handle:
-                        async for chunk in response.aiter_bytes():
-                            size += len(chunk)
-                            if size > MAX_FILE_BYTES:
-                                handle.close()
-                                path.unlink(missing_ok=True)
-                                raise ValueError(f"{name} exceeded {MAX_FILE_BYTES // 2**20} MiB")
-                            handle.write(chunk)
+            async with (
+                httpx.AsyncClient(headers={"User-Agent": USER_AGENT}, follow_redirects=True, timeout=120) as client,
+                client.stream("GET", item["url"]) as response,
+            ):
+                response.raise_for_status()
+                size = 0
+                with path.open("wb") as handle:
+                    async for chunk in response.aiter_bytes():
+                        size += len(chunk)
+                        if size > MAX_FILE_BYTES:
+                            handle.close()
+                            path.unlink(missing_ok=True)
+                            raise ValueError(f"{name} exceeded {MAX_FILE_BYTES // 2**20} MiB")
+                        handle.write(chunk)
             _last_request[host] = time.monotonic()
         if extract_zip and name.lower().endswith(".zip"):
             folder = target / Path(name).stem
